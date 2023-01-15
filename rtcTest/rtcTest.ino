@@ -21,7 +21,7 @@ void setup() {
   while (1);
   }
 
-  //rtc.adjust(DateTime(2023, 1, 14, 1, 18, 0)); //only use once sets to Jan 14, 2023, 00:10:00
+  rtc.adjust(DateTime(2023, 1, 14, 1, 18, 0)); //only use once sets to Jan 14, 2023, 00:10:00
 
 }
 

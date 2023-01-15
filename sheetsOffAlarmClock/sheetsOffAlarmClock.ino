@@ -15,6 +15,8 @@ RTC_DS1307 rtc;
 SoftwareSerial SWSerial1(NOT_A_PIN, 1); // RX on no pin (unused), TX on pin 1 (to S1).
 SyRenSimplified SR1(SWSerial1); // Use SWSerial as the serial port.
 
+int* DateAndTime();
+
 //motor constants
 float motorEffort = 150; //from -126 to 126
 
@@ -27,10 +29,10 @@ const byte ROWS = 4;
 const byte COLS = 4;
 
 char hexaKeys[ROWS][COLS] = {
-  {'1', '2', '3', 'A'},
-  {'4', '5', '6', 'B'},
-  {'7', '8', '9', 'C'},
-  {'*', '0', '#', 'D'}
+  {'D', 'C', 'B', 'A'},
+  {'#', '9', '6', '3'},
+  {'0', '8', '5', '2'},
+  {'*', '7', '4', '1'}
 };
 
 byte rowPins[ROWS] = {9, 8, 7, 6}; 
@@ -47,25 +49,43 @@ const int motorEngagedPin = 13;
 bool fire, motorEnable;
 
 //print values
-float timeLast = millis();
-float timeCurr = timeLast;
+long timeLast = millis();
+long timeCurr = timeLast;
 const float printTime = 300;
+
+//time constants for clock update
+long clockTimeLast = millis();
 
 //misc variables
 char lastKeyPress;
+bool enteringState = true;
 
 char daysOfTheWeek[7][12] = {
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday"
+  "S",
+  "M",
+  "T",
+  "W",
+  "T",
+  "F",
+  "U"
 };
 
 const char monthInWords[13][4] = {" ", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
                                          "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+int alarmTime[4] = {99, 99, 99, 99};
+int newAlarmTime[4];
+int hourMinuteAlarmTime[2] = {25, 70};
+
+//typedef enum {
+//  IDLING,
+//  SETALARM,
+//  ALARM
+//} State;
+//
+//State state = IDLING;
+
+int state = 0;
 
 void setup()
 {
@@ -80,15 +100,15 @@ void setup()
     while (1);
   }
 
-  //rtc.adjust(DateTime(2023, 1, 14, 1, 18, 0)); //only use once sets to Jan 14, 2023, 00:10:00
+  //rtc.adjust(DateTime(2023, 1, 15, 1, 40, 0)); //only use once sets to Jan 15, 2023, 01:40:00
 
-  pinMode(motorEngagedPin, INPUT);
   pinMode(firePin, INPUT);
 
   //enable serial
   SWSerial1.begin(9600);
 
 }
+
 
 void loop()
 {
@@ -97,60 +117,185 @@ void loop()
   //////////////////////////////////////////
 
   //switches
-  motorEnable = digitalRead(motorEngagedPin);
   fire = digitalRead(firePin);
   char numKey = numKeypad.getKey();
   if(numKey) lastKeyPress = numKey; //store last numberpad key;
+
+  
   //////////////////////////////////////////
   ////////       state machine        //////
   //////////////////////////////////////////
-  if(!motorEnable){
+
+//  switch (state){ //case switch borked on the arduino it seems
+//    case 0:
+  if(state == 0){
+
+      if(millis() - clockTimeLast > 1000){
+        clockTimeLast = millis();
+        
+        DateTime now = rtc.now();
+        //lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print(now.month());
+        lcd.print("/");
+        lcd.print(now.day());
+//        lcd.print("/");
+//        lcd.print(now.year());
+        lcd.print(" ");
+        lcd.print(daysOfTheWeek[now.dayOfTheWeek()]);
+        lcd.print(" ");
+        lcd.print(now.hour());
+        lcd.print(":");
+        lcd.print(now.minute());
+        lcd.print(":");
+        if(now.second() < 10) lcd.print("0");
+        lcd.print(now.second());
+        
+        
+        lcd.setCursor(0, 1);
+        lcd.print("# to set alarm");
+
+        if(hourMinuteAlarmTime[0] <= (int(now.hour())) && hourMinuteAlarmTime[1] <= (int(now.minute()))) //check to see if go alarm
+            state = 2; 
+
+        Serial.print(hourMinuteAlarmTime[0]);
+        Serial.print(int(now.hour()));
+        Serial.print(hourMinuteAlarmTime[0] <= (int(now.hour())));
+        Serial.print("\t");
+        Serial.print(hourMinuteAlarmTime[1]);
+        Serial.print(int(now.minute()));
+        Serial.print(hourMinuteAlarmTime[1] <= (int(now.minute())));
+        
+      }
+
+      if (lastKeyPress == '#') {
+        lastKeyPress = ' ';
+        state = 1;
+        enteringState = true;
+      }
+
+
+//      int* currTime = DateAndTime();
+//      if(alarmTime[0] >= currTime[3] && alarmTime[1] >= currTime[4] && alarmTime[2] >= currTime[5]) state = 2;
+//      for(int f = 0; f <= 2; f++) {
+//        int x = 3;
+//        Serial.print("f: " + alarmTime[f]);
+//        Serial.println(" and x: " + currTime[x]);
+//        //Serial.print(alarmTime[f]);
+//        //Serial.println(currTime[x]);
+//        x++;
+//      }
+    
+  } else if (state == 1){    ////////////set alarm state///////////////////////
+//    case 1: //set alarm
+   if(enteringState){
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Set alarm");
+      lcd.setCursor(0, 1);
+      lcd.print("in military time");
+      enteringState = false;
+      delay(500);
+   }
+
+    for (int i = 0; i <= 3; i++){
+      char numKey = numKeypad.getKey();
+      while(!numKey) numKey = numKeypad.getKey();
+      int intNumKey = numKey - 48;
+//      Serial.print(numKey);
+//      Serial.print("\t");
+//      Serial.print(intNumKey);
+//      Serial.print("\t");
+      
+      alarmTime[i] = intNumKey;
+      Serial.print("\n");
+      Serial.print(alarmTime[i]);
+      Serial.print("\t");
+      Serial.print(alarmTime[0]);
+      Serial.print(alarmTime[1]);
+      Serial.print(":");
+      Serial.print(alarmTime[2]);
+      Serial.print(alarmTime[3]);
+      Serial.print("\t");
+      Serial.print(hourMinuteAlarmTime[0]);
+      Serial.print(":");
+      Serial.print(hourMinuteAlarmTime[1]);
+
+      if(i == 1) hourMinuteAlarmTime[0] = alarmTime[0]*10 + alarmTime[1]; //hour
+      if(i == 3) hourMinuteAlarmTime[1] = alarmTime[2]*10 + alarmTime[3]; //minute
+
+      Serial.print("\t");
+      Serial.print(hourMinuteAlarmTime[0]);
+      Serial.print(":");
+      Serial.print(hourMinuteAlarmTime[1]);
+     
+//      Serial.print(alarmTime[i]);
+//
+//      Serial.print("\t");
+//      Serial.print(alarmTime[0]);
+//      Serial.print("\t");
+//      Serial.print(alarmTime[1]);
+//      Serial.print("\t");
+//      Serial.print(alarmTime[2]);
+//      Serial.print("\t");
+//      Serial.print(alarmTime[3]);
+      delay(500);
+    }
+  
     lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Motor Disabled");
-    lcd.setCursor(0, 1);
-    lcd.print("Reenable to Operate");
-  }
-  
+    lcd.setCursor(0,0);
+    lcd.print("alarm set for:");
+    lcd.setCursor(0,1);
+    lcd.print(alarmTime[0]);
+    lcd.print(alarmTime[1]);
+    lcd.print(":");
+    lcd.print(alarmTime[2]);
+    lcd.print(alarmTime[3]);
+    state = 0;
+    enteringState = true;
+    delay(5000);
+      
+  } else if (state == 2) {   //////////////alarm state//////////////////
 
-  //////////////////////////////////////////
-  ////////        calculations        //////
-  //////////////////////////////////////////
-  
+    
+//    case 2: //alarm
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("ALARM TIME");
+      
+      SR1.motor(100); //-126 to 126
+      delay(1000);
+      SR1.motor(0);
+      delay(1000);
 
-  //////////////////////////////////////////
-  ////////        set efforts         //////
-  //////////////////////////////////////////
-//  leftEffort = leftEffort * effortP;
-//  rightEffort = rightEffort * effortP;
-  
-  if(motorEnable){
-    SR1.motor(motorEffort);
-  } else {
-    SR1.motor(0);
-  }
+      state = 0;
+    }
+    
+
   
 
   //////////////////////////////////////////
   ////////         Telemetry          //////
   //////////////////////////////////////////
+  
   timeCurr = millis();
   if(timeCurr - timeLast > printTime){ //prints every printTime ms
 
     //switches
-    Serial.print("\tMotor Disabled??: ");
-    Serial.print("");
     Serial.print("\tFire Missiles?: ");
     Serial.print(fire);
-    Serial.print("\tmotor enable?: ");
-    Serial.print(motorEnable);
+    Serial.print("\tstate: ");
+    Serial.print(state);
+    Serial.print("\talarm: ");
+    Serial.print(alarmTime[0]);
+    Serial.print(alarmTime[1]);
+    Serial.print(":");
+    Serial.print(alarmTime[2]);
+    Serial.print(alarmTime[3]);
     Serial.print("\n");
     Serial.print("\tLast Keypress: ");
     Serial.print(lastKeyPress);
 
-    //values
-    Serial.print("\tmotor effort: ");
-    Serial.print(motorEffort);
     
     Serial.print("\n\n\n");
     timeLast = timeCurr;
@@ -169,7 +314,7 @@ void loop()
 //    now.hour(), now.minute(), now.second()]);
 //}
 
-int * DateAndTime() {
+int* DateAndTime() {
   DateTime now = rtc.now();
 //  Serial.print("Date & Time: " + now.year() + '/' + now.month() + 
 //    '/' + now.day() + " (" + daysOfTheWeek[now.dayOfTheWeek()] + 
@@ -178,11 +323,9 @@ int * DateAndTime() {
   r[0] = now.year();
   r[1] = now.month();
   r[2] = now.day();
-  r[3] = daysOfTheWeek[now.dayOfTheWeek()];
-  r[4] = now.hour();
-  r[5] = now.minute();
-  r[6] = now.second();
-//  return([now.year(), now.month(), now.day(), daysOfTheWeek[now.dayOfTheWeek()], 
-//    now.hour(), now.minute(), now.second()]);
-return r;
+//  r[3] = daysOfTheWeek[now.dayOfTheWeek()];
+  r[3] = now.hour();
+  r[4] = now.minute();
+  r[5] = now.second();
+  return r;
 }
