@@ -64,6 +64,9 @@ char daysOfTheWeek[7][12] = {
   "Saturday"
 };
 
+const char monthInWords[13][4] = {" ", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
+                                         "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
 void setup()
 {
   Serial.begin(115200);
@@ -156,11 +159,30 @@ void loop()
 }
 
 // returns array that is formatted [year, month, day, day of week, hour, minute, second]
-//struct DateAndTime{
+//struct DateAndTime(){
 //  DateTime now = rtc.now();
-//  Serial.print("Date & Time: " + now.year() + '/' + now.month() + 
-//    '/' + now.day() + " (" + daysOfTheWeek[now.dayOfTheWeek()] + 
-//      ") " + now.hour() + ':' + now.minute() + ':' + now.second());
+////  Serial.print("Date & Time: " + now.year() + '/' + now.month() + 
+////    '/' + now.day() + " (" + daysOfTheWeek[now.dayOfTheWeek()] + 
+////      ") " + now.hour() + ':' + now.minute() + ':' + now.second());
+//
 //  return([now.year(), now.month(), now.day(), daysOfTheWeek[now.dayOfTheWeek()], 
 //    now.hour(), now.minute(), now.second()]);
 //}
+
+int * DateAndTime() {
+  DateTime now = rtc.now();
+//  Serial.print("Date & Time: " + now.year() + '/' + now.month() + 
+//    '/' + now.day() + " (" + daysOfTheWeek[now.dayOfTheWeek()] + 
+//      ") " + now.hour() + ':' + now.minute() + ':' + now.second());
+  static int r[6];
+  r[0] = now.year();
+  r[1] = now.month();
+  r[2] = now.day();
+  r[3] = daysOfTheWeek[now.dayOfTheWeek()];
+  r[4] = now.hour();
+  r[5] = now.minute();
+  r[6] = now.second();
+//  return([now.year(), now.month(), now.day(), daysOfTheWeek[now.dayOfTheWeek()], 
+//    now.hour(), now.minute(), now.second()]);
+return r;
+}
